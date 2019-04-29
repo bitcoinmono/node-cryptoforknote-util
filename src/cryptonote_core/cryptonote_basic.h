@@ -141,6 +141,15 @@ namespace cryptonote
     END_SERIALIZE()
   };
 
+  enum loki_version
+  {
+    loki_version_0 = 0,
+    loki_version_1,
+    loki_version_2,
+    loki_version_3_per_output_unlock_times,
+    loki_version_4_tx_types,
+  };
+
   class transaction_prefix
   {
 
@@ -155,20 +164,45 @@ namespace cryptonote
     //extra
     std::vector<uint8_t> extra;
 
+    //
+    // NOTE: Loki specific
+    //
     std::vector<uint64_t> output_unlock_times;
-    bool is_deregister;
+    enum loki_type_t
+    {
+      loki_type_standard,
+      loki_type_deregister,
+      loki_type_key_image_unlock,
+      loki_type_count,
+    };
+
+    union
+    {
+      bool is_deregister;
+      uint16_t type;
+    };
 
     BEGIN_SERIALIZE()
       VARINT_FIELD(version)
-      if (blob_type == BLOB_TYPE_CRYPTONOTE_LOKI)
+      if (version > loki_version_2 && blob_type == BLOB_TYPE_CRYPTONOTE_LOKI)
       {
         FIELD(output_unlock_times)
-        FIELD(is_deregister)
+        if (version == loki_version_3_per_output_unlock_times)
+          FIELD(is_deregister)
       }
       VARINT_FIELD(unlock_time)
       FIELD(vin)
       FIELD(vout)
+      if (blob_type == BLOB_TYPE_CRYPTONOTE_LOKI)
+      {
+        if (version >= loki_version_3_per_output_unlock_times && vout.size() != output_unlock_times.size()) return false;
+      }
       FIELD(extra)
+      if (blob_type == BLOB_TYPE_CRYPTONOTE_LOKI && version >= loki_version_4_tx_types)
+      {
+        VARINT_FIELD(type)
+        if (static_cast<uint16_t>(type) >= loki_type_count) return false;
+      }
     END_SERIALIZE()
 
 
@@ -189,7 +223,7 @@ namespace cryptonote
     BEGIN_SERIALIZE_OBJECT()
       FIELDS(*static_cast<transaction_prefix *>(this))
 
-      if (version == 1 && blob_type != BLOB_TYPE_CRYPTONOTE2)
+      if (version == 1 && blob_type != BLOB_TYPE_CRYPTONOTE2 && blob_type != BLOB_TYPE_CRYPTONOTE3)
       {
         ar.tag("signatures");
         ar.begin_array();
@@ -323,6 +357,7 @@ namespace cryptonote
       if (hashing_serialization)
       {
         crypto::hash miner_tx_hash;
+
         if (b.miner_tx.version < 2) {
           if (!get_transaction_hash(b.miner_tx, miner_tx_hash))
             return false;
@@ -411,6 +446,7 @@ namespace cryptonote
 
     transaction miner_tx;
     std::vector<crypto::hash> tx_hashes;
+    mutable crypto::hash uncle = cryptonote::null_hash;
 
     void set_blob_type(enum BLOB_TYPE bt) { miner_tx.blob_type = blob_type = bt; }
 
@@ -423,6 +459,10 @@ namespace cryptonote
       }
       FIELD(miner_tx)
       FIELD(tx_hashes)
+      if (blob_type == BLOB_TYPE_CRYPTONOTE3)
+      {
+        FIELD(uncle)
+      }
     END_SERIALIZE()
   };
 
