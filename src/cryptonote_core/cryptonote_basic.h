@@ -223,7 +223,7 @@ namespace cryptonote
     BEGIN_SERIALIZE_OBJECT()
       FIELDS(*static_cast<transaction_prefix *>(this))
 
-      if (version == 1 && blob_type != BLOB_TYPE_CRYPTONOTE2 && blob_type != BLOB_TYPE_CRYPTONOTE3)
+      if (version == 1 && blob_type != BLOB_TYPE_CRYPTONOTE2)
       {
         ar.tag("signatures");
         ar.begin_array();
@@ -459,10 +459,6 @@ namespace cryptonote
       }
       FIELD(miner_tx)
       FIELD(tx_hashes)
-      if (blob_type == BLOB_TYPE_CRYPTONOTE3)
-      {
-        FIELD(uncle)
-      }
     END_SERIALIZE()
   };
 
