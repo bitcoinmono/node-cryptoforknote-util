@@ -446,7 +446,6 @@ namespace cryptonote
 
     transaction miner_tx;
     std::vector<crypto::hash> tx_hashes;
-    mutable crypto::hash uncle = cryptonote::null_hash;
 
     void set_blob_type(enum BLOB_TYPE bt) { miner_tx.blob_type = blob_type = bt; }
 
